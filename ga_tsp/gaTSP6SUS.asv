@@ -34,9 +34,9 @@ end
 for gen = 1 : iter
 	
 	% 交叉
-	for i = 1: N
-		d1 = randi(N);
-		d2 = randi(N);
+	for i = 1: size(dna, 1)
+		d1 = randi(size(dna, 1));
+		d2 = randi(size(dna, 1));
 		% 这里为了偷懒，直接植入了别的函数的swap，详见intercross.m
 		a = dna(d1, :);
 		b = dna(d2, :);
@@ -78,7 +78,7 @@ for gen = 1 : iter
 	
 	% 变异
 	x3 = dna;
-	for i = 1: N								% 变异操作，这边的变异不能rand了，因为序号不能重复，所以宁可两个位置相互交换
+	for i = 1: size(dna, 1)							% 变异操作，这边的变异不能rand了，因为序号不能重复，所以宁可两个位置相互交换
 		if rand < pm
 			k1 = randi([1, L]);
 			k2 = randi([1, L]);
@@ -90,12 +90,13 @@ for gen = 1 : iter
 	
 	
 	% 排序和淘汰
-	dna = [dna; x1; x2; x3];							% 合并新旧基因
+	dna = [dna; x1; x2; x3];						% 合并新旧基因
 	
 	% 计算适应度
 	% 其实计算没那么复杂，就是查表
-	dna = [dna, dna(:, 1) ];						% 最后必须回到开始的地方
-	for i = 1 : N * 4
+	fi  = [];
+	dna = [dna, dna(:, 1) ];						% 最后必须回到开始的地方，这边会有时候dna和dna_t分不清，这是因为复制代码的缘故
+	for i = 1 : size(dna, 1)
 		fi(i, 1) = 0;
 		for j = 2 : L + 1
 			k1 = dna(i, j);
@@ -105,21 +106,48 @@ for gen = 1 : iter
 	end
 	
 	dna = [dna, fi];
-	dna = sortrows(dna, L + 2);							% 对适应度进行排名，注意这回排序是从低到高
+	%dna = sortrows(dna, L + 2);							% 对适应度进行排名，注意这回排序是从低到高
 	
-	% 自然选择
-	% 如果子代个数太多了，就开始淘汰
-	while size(dna, 1) > N
-		d = randi(size(dna, 1));
-		if rand < (d - 1) / size(dna, 1)				% 排名法，越靠后的淘汰几率越高
-			dna(d,:) = [];
-			fi(d, :) = [];
+	dna_t = dna(:, 1 : L);								% dna_t = dna_t(:, 1 : L);
+
+	% 随机均匀采样法SUS
+	% 归一化概率值
+	fi_min = min(fi);
+	fi = fi - fi_min;
+	fi = cumsum(fi);									% 累加
+	fi = fi / fi(size(fi, 1));							% 累计概率最后一个值一定是最大值，即全部相加，除以它，就归一化了
+	% 这里作两个技巧性的操作
+	%fi = 1. - fi;										% 以往求都是求最大值，这里是求最小值，而SUS不好表示最小值，所以这边干脆直接把概率倒过来，这样不就是最小值了
+	%fi = flipud(fi);									% 减完重新排序一下
+	%dna_t = flipud(dna_t);
+	
+	
+	% 创建指针
+	% 指针是均匀隔开的，所以间隔则必然是：
+	% 当前种群树 / 目标种群树，即隔多少个取一个
+	% 但是对于概率，由于概率是0~1，所以这个值也必须调整，肯定要归一化，可以认为是在1内取多少个，所以
+	% 结果是 1 / nSel
+	nInd = size(dna_t, 1);
+	nSel = N;
+	interval = 1 / nSel;
+	susPtr = 0. : interval : 1.;
+	susPtr = susPtr + rand / nSel;		% rand / nSel < 1 / nSel，rand / nSel是一个小于区间步长的随机数
+	
+	% 根据指针取数
+	j = 1;
+	dna = [];
+	for i = 1 : nInd
+		if j > nSel
+			break;
+		end
+		if fi(i) > susPtr(j)
+			dna(j, :) = dna_t(i, :);
+			j = j + 1;
 		end
 	end
-	dna = dna(:, 1:L);
 	
 	% 记录fi的最优值以查看收敛情况
-	fi_best(gen) = fi(1, :);
+	fi_best(gen) = 1. - fi(1, :);
 	
 end
 

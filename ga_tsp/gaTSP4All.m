@@ -40,6 +40,9 @@ end
 for gen = 1 : iter
 	
 	% 交叉
+	% 因为会出现全0的数组，这边加个保护
+	x1 = dna;
+	x2 = dna;
 	for i = 1: N
 		if rand < pc							
 			d = randi(N);						% 确定另一个交叉的个体
@@ -57,29 +60,29 @@ for gen = 1 : iter
 			k1 = randi([1, L]);
 			k2 = randi([1, L]);
 			t = x3(i, k1);
-			x3(i, k1) = x3(1, k2);
+			x3(i, k1) = x3(i, k2);
 			x3(i, k2) = t;
 		end
 	end
 	
 	
 	% 排序和淘汰
-	dna_t = [dna; x1; x2; x3];							% 合并新旧基因
+	dna = [dna; x1; x2; x3];							% 合并新旧基因
 	
 	% 计算适应度
 	% 其实计算没那么复杂，就是查表
-	dna_t = [dna, dna(:, 1) ];							% 最后必须回到开始的地方
-	for i = 1 : N
+	dna = [dna, dna(:, 1) ];							% 最后必须回到开始的地方
+	for i = 1 : N * 4
 		fi(i, 1) = 0;
 		for j = 2 : L + 1
-			k1 = dna_t(i, j);
-			k2 = dna_t(i, j - 1);
+			k1 = dna(i, j);
+			k2 = dna(i, j - 1);
 			fi(i, 1) = fi(i, 1) + costmap(k1, k2);
 		end
 	end
 	
 	dna = [dna, fi];
-	dna = sortrows(dna, L + 1);							% 对适应度进行排名，注意这回排序是从低到高
+	dna = sortrows(dna, L + 2);							% 对适应度进行排名，注意这回排序是从低到高
 	
 	% 自然选择
 	% 如果子代个数太多了，就开始淘汰
@@ -107,4 +110,13 @@ for i = 2 : L + 1
 	quiver(posX, posY, posU - posX, posV - posY);
 	
 end
+
+%% 后记
+%  这个代码其实改到最后，改对了，但是也改出问题了
+% 会发现 得到的数据都是
+% [8,8,8,3,3,3,3,8,8,8]
+% 这样在一个地方转圈的，这是因为交换的时候有些问题没有考虑到
+
+% 比如1 2 3 4 5 6和6 5 4 3 2 1交换
+% 可能变为 1 2 3 3 2 1和6 5 4 4 5 6
 
