@@ -20,10 +20,10 @@ end
 
 %% 遗传算法部分
 % 产生初始随机数列数列
-N = 50;
+N = 25;
 L = locationNum;
 
-pc = 0.8;							% 交叉概率
+pc = 0.6;							% 交叉概率
 pm = 0.05;							% 变异概率
 
 iter = 200;					% 迭代次数
@@ -34,9 +34,9 @@ end
 for gen = 1 : iter
 	
 	% 交叉
-	for i = 1: size(dna, 1)
-		d1 = randi(size(dna, 1));
-		d2 = randi(size(dna, 1));
+	for i = 1: N
+		d1 = randi(N);
+		d2 = randi(N);
 		% 这里为了偷懒，直接植入了别的函数的swap，详见intercross.m
 		a = dna(d1, :);
 		b = dna(d2, :);
@@ -78,7 +78,7 @@ for gen = 1 : iter
 	
 	% 变异
 	x3 = dna;
-	for i = 1: size(dna, 1)							% 变异操作，这边的变异不能rand了，因为序号不能重复，所以宁可两个位置相互交换
+	for i = 1: N								% 变异操作，这边的变异不能rand了，因为序号不能重复，所以宁可两个位置相互交换
 		if rand < pm
 			k1 = randi([1, L]);
 			k2 = randi([1, L]);
@@ -90,23 +90,57 @@ for gen = 1 : iter
 	
 	
 	% 排序和淘汰
-	dna = [dna; x1; x2; x3];						% 合并新旧基因
+	dna = [dna; x1; x2; x3];							% 合并新旧基因
 	
 	% 计算适应度
 	% 其实计算没那么复杂，就是查表
-	fi  = [];
-	dna = [dna, dna(:, 1) ];						% 最后必须回到开始的地方，这边会有时候dna和dna_t分不清，这是因为复制代码的缘故
-	for i = 1 : size(dna, 1)
+	dna = [dna, dna(:, 1) ];							% 最后必须回到开始的地方
+	for i = 1 : N * 4
 		fi(i, 1) = 0;
 		for j = 2 : L + 1
 			k1 = dna(i, j);
 			k2 = dna(i, j - 1);
 			fi(i, 1) = fi(i, 1) + costmap(k1, k2);
 		end
+		fi(i, 1) = 1 / fi(i, 1);						% 因为这边是求最小，所以这边必须取倒数
 	end
 	
+	%dna = [dna, fi];
 	
+	% SUS法选择
+	%fi_min = min(fi);
+	pfi = fi;											% 归一化概率，这边减去一个最小值是为了避免受到负数或者过大的正数的影响, pfi = fi - fi_min
+	pfi = cumsum(pfi);									% 后面发现因为上面求了倒数，所以如果在收敛的时候，如果都减去一个最小值
+	pfi = pfi / pfi(size(pfi, 1));
+	dna_t = [ dna, pfi ];								% 趁着还没排序，绑定编码和适应度函数，这样在后面好操作
 	
+	nIdn = size(fi, 1);									% 产生指针
+	nSel = N;
+	interval = 1 / nSel;
+	susPtr = 0. : interval : 1.;
+	susPtr = susPtr + rand / nSel;						% rand / nSel < 1 / nSel，rand / nSel是一个小于区间步长的随机数
+		
+	if ~isempty(find(isnan(pfi)))
+		gen = gen + 1;
+		gen = gen - 1;
+	end
+	
+	% 根据指针取数
+	j = 1;
+	dna = [];
+	for i = 1 : nIdn
+		if j > nSel
+			break;
+		end
+		if dna_t(i, L + 2) > susPtr(j)
+			dna(j, :) = dna_t(i, 1 : L);
+			j = j + 1;
+		end
+	end
+	
+	% 记录fi的最优值以查看收敛情况
+	fi_best(gen) = fi(1, :);
+		
 end
 
 %% 作图
