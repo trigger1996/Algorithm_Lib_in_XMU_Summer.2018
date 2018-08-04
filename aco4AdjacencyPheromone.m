@@ -43,3 +43,5 @@ tau = ones(locationNum) * (m / Cnn);			% 信息素矩阵对角线为0，其余值为m/Cnn
 tau = tau - eye(locationNum) * (m / Cnn);		% 这里用全1矩阵减去对角矩阵得到
 
 
+
+
