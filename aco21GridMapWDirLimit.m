@@ -128,7 +128,7 @@ for iter = 1 : iter_max
 				Pt(j, :) = tau(currentGrid, nextGrid)^alpha + Eta(currentGrid, nextGrid)^beta;
 			end
 			
-						% 方向约束
+			% 方向约束
 			flag_remove = logical(zeros(size(allowList, 2), 1));
 			for j = 1 : size(allowList, 2)
 				currentGrid = antTraj(i, currentPos);
